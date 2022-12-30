@@ -10,7 +10,7 @@ DEFAULT_BACKEND = {
     'ddpg': 'pytorch',
     'td3': 'pytorch',
     'sac': 'pytorch',
-    'pit': 'pytorch',
+    'epit': 'pytorch',
 }
 
 # Where experiment outputs are saved by default:
@@ -25,4 +25,4 @@ DEFAULT_SHORTHAND = True
 
 # Tells the GridSearch how many seconds to pause for before launching 
 # experiments.
-WAIT_BEFORE_LAUNCH = 5
+WAIT_BEFORE_LAUNCH = 1

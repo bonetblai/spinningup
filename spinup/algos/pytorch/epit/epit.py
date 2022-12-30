@@ -3,15 +3,15 @@ import torch
 from torch.optim import Adam
 import gym
 import time
-import spinup.algos.pytorch.pit.core as core
+import spinup.algos.pytorch.epit.core as core
 from spinup.utils.logx import EpochLogger
 from spinup.utils.mpi_pytorch import setup_pytorch_for_mpi, sync_params, mpi_avg_grads
 from spinup.utils.mpi_tools import mpi_fork, mpi_avg, proc_id, mpi_statistics_scalar, num_procs
 
 
-class PITBuffer:
+class EPITBuffer:
     """
-    A buffer for storing trajectories experienced by a PIT agent interacting
+    A buffer for storing trajectories experienced by a EPIT agent interacting
     with the environment, and using Generalized Advantage Estimation (GAE-Lambda)
     for calculating the advantages of state-action pairs.
     """
@@ -85,14 +85,14 @@ class PITBuffer:
 
 
 
-def pit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0, 
-        steps_per_epoch=4000, epochs=50, gamma=0.99, pi_lr=3e-4,
-        vf_lr=1e-3, train_v_iters=80, lam=0.97, max_ep_len=1000,
-        logger_kwargs=dict(), save_freq=10):
+def epit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0, 
+         steps_per_epoch=4000, epochs=50, gamma=0.99, pi_lr=3e-4,
+         vf_lr=1e-3, train_v_iters=80, lam=0.97, max_ep_len=1000,
+         logger_kwargs=dict(), save_freq=10):
     """
     Policy Improvement Theorem
 
-    Algorithm based on the policy improvement theorem (PIT)
+    Episode-based algorithm based on the policy improvement theorem (PIT)
 
     PIT: Let \pi and \pi' be two stochastic policies such that for every
     non-goal state s,
@@ -168,7 +168,7 @@ def pit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
             ===========  ================  ======================================
 
         ac_kwargs (dict): Any kwargs appropriate for the ActorCritic object 
-            you provided to PIT.
+            you provided to EPIT.
 
         seed (int): Seed for random number generators.
 
@@ -230,13 +230,14 @@ def pit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
 
     # Set up experience buffer
     local_steps_per_epoch = int(steps_per_epoch / num_procs())
-    buf = PITBuffer(obs_dim, act_dim, local_steps_per_epoch, gamma, lam)
+    buf = EPITBuffer(obs_dim, act_dim, local_steps_per_epoch, gamma, lam)
     logger.log(f'Buffer: obs_dim={obs_dim}, act_dim={act_dim}, local_steps_per_epoch={local_steps_per_epoch}, gamma={gamma}, lam={lam}\n')
 
-    # Set up function for computing PIT policy loss
+    # Set up function for computing EPIT policy loss
     def compute_loss_pi(data, debug=False):
         obs, act, adv, logp_old = data['obs'], data['act'], data['adv'], data['logp']
 
+        # In the episodic case, PIT becomes VPG as done here
         # Policy loss
         pi, logp = ac.pi(obs, act)
         loss_pi = -(logp * adv).mean()
@@ -266,7 +267,7 @@ def pit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
 
     def update():
         data = buf.get()
-        logger.log(f'Data shape: obs={data["obs"].shape}, act={data["act"].shape}, ret={data["ret"].shape}, adv={data["adv"].shape}, logp={data["logp"].shape}')
+        #logger.log(f'Data shape: obs={data["obs"].shape}, act={data["act"].shape}, ret={data["ret"].shape}, adv={data["adv"].shape}, logp={data["logp"].shape}')
         #logger.log(f'data={data}')
 
         # Get loss and info values before update (only for logging purposes)
@@ -350,7 +351,7 @@ def pit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
         if (epoch % save_freq == 0) or (epoch == epochs-1):
             logger.save_state({'env': env}, None)
 
-        # Perform PIT update!
+        # Perform EPIT update!
         update()
 
         # Log info about epoch
@@ -379,7 +380,7 @@ if __name__ == '__main__':
     parser.add_argument('--cpu', type=int, default=4)
     parser.add_argument('--steps', type=int, default=4000)
     parser.add_argument('--epochs', type=int, default=50)
-    parser.add_argument('--exp_name', type=str, default='pit')
+    parser.add_argument('--exp_name', type=str, default='epit')
     args = parser.parse_args()
 
     mpi_fork(args.cpu)  # run parallel code with mpi
@@ -387,7 +388,7 @@ if __name__ == '__main__':
     from spinup.utils.run_utils import setup_logger_kwargs
     logger_kwargs = setup_logger_kwargs(args.exp_name, args.seed)
 
-    pit(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
-        ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
-        seed=args.seed, steps_per_epoch=args.steps, epochs=args.epochs,
-        logger_kwargs=logger_kwargs)
+    epit(lambda : gym.make(args.env), actor_critic=core.MLPActorCritic,
+         ac_kwargs=dict(hidden_sizes=[args.hid]*args.l), gamma=args.gamma, 
+         seed=args.seed, steps_per_epoch=args.steps, epochs=args.epochs,
+         logger_kwargs=logger_kwargs)
