@@ -26,10 +26,10 @@ SUBSTITUTIONS = {'env': 'env_name',
                  'dt': 'datestamp'}
 
 # Only some algorithms can be parallelized (have num_cpu > 1):
-MPI_COMPATIBLE_ALGOS = ['vpg', 'trpo', 'ppo']
+MPI_COMPATIBLE_ALGOS = ['vpg', 'trpo', 'ppo', 'pit']
 
 # Algo names (used in a few places)
-BASE_ALGO_NAMES = ['vpg', 'trpo', 'ppo', 'ddpg', 'td3', 'sac']
+BASE_ALGO_NAMES = ['vpg', 'trpo', 'ppo', 'ddpg', 'td3', 'sac', 'pit']
 
 
 def add_with_backends(algo_list):
