@@ -162,8 +162,8 @@ def vpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     logger.log(f'Buffer: obs_dim={obs_dim}, act_dim={act_dim}, size={replay_size}')
 
     # Count variables (protip: try to get a feel for how different size networks behave!)
-    var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.q, ac.v])
-    logger.log(f'Number of parameters: pi={var_counts[0]}, q={var_counts[1]}, v={var_counts[2]}')
+    var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.v])
+    logger.log(f'Number of parameters: pi={var_counts[0]}, v={var_counts[1]}')
 
     # Set up function for computing V-loss
     def compute_loss_v(data, debug: int = 0):
