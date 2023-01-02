@@ -17,7 +17,9 @@ from spinup.algos.pytorch.sac.sac import sac as sac_pytorch
 from spinup.algos.pytorch.td3.td3 import td3 as td3_pytorch
 from spinup.algos.pytorch.trpo.trpo import trpo as trpo_pytorch
 from spinup.algos.pytorch.vpg.vpg import vpg as vpg_pytorch
-from spinup.algos.pytorch.epit.epit import epit as epit_pytorch
+from spinup.algos.pytorch.pit.epit.epit import epit as epit_pytorch
+from spinup.algos.pytorch.pit.qpit.qpit import qpit as qpit_pytorch
+from spinup.algos.pytorch.pit.vpit.vpit import vpit as vpit_pytorch
 
 # Loggers
 from spinup.utils.logx import Logger, EpochLogger

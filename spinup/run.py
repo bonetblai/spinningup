@@ -29,7 +29,7 @@ SUBSTITUTIONS = {'env': 'env_name',
 MPI_COMPATIBLE_ALGOS = ['vpg', 'trpo', 'ppo', 'epit']
 
 # Algo names (used in a few places)
-BASE_ALGO_NAMES = ['vpg', 'trpo', 'ppo', 'ddpg', 'td3', 'sac', 'epit']
+BASE_ALGO_NAMES = ['vpg', 'trpo', 'ppo', 'ddpg', 'td3', 'sac', 'epit', 'qpit', 'vpit']
 
 
 def add_with_backends(algo_list):
@@ -158,6 +158,8 @@ def parse_and_execute_grid_search(cmd, args):
     assert 'env_name' in arg_dict, \
         friendly_err("You did not give a value for --env_name! Add one and try again.")
     for env_name in arg_dict['env_name']:
+        if env_name not in valid_envs:
+            print(valid_envs)
         err_msg = dedent("""
 
             %s is not registered with Gym.

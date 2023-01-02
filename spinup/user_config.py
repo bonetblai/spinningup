@@ -11,6 +11,8 @@ DEFAULT_BACKEND = {
     'td3': 'pytorch',
     'sac': 'pytorch',
     'epit': 'pytorch',
+    'qpit': 'pytorch',
+    'vpit': 'pytorch',
 }
 
 # Where experiment outputs are saved by default:
