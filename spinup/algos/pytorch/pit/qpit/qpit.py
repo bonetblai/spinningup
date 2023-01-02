@@ -4,7 +4,7 @@ import torch
 from torch.optim import Adam
 import gym
 import time
-import spinup.algos.pytorch.qpit.core as core
+import spinup.algos.pytorch.pit.qpit.core as core
 from spinup.utils.logx import EpochLogger
 
 
@@ -165,10 +165,8 @@ def qpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Count variables (protip: try to get a feel for how different size networks behave!)
     var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.q, ac.v])
     logger.log(f'Number of parameters: pi={var_counts[0]}, q={var_counts[1]}, v={var_counts[2]}')
-    #var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.v])
-    #logger.log(f'Number of parameters: pi={var_counts[0]}, v={var_counts[1]}')
 
-    # Set up function for computing DDPG Q-loss
+    # Set up function for computing Q-loss
     def compute_loss_q(data, debug: int = 0):
         o, a, r, o2, d = data['obs'], data['act'], data['rew'], data['obs2'], data['done']
         if debug > 1: logger.log(f'compute_loss_q: o={o}, a={a}, r={r}, o2={o2}, d={d}')
@@ -190,12 +188,12 @@ def qpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
         # Useful info for logging
         loss_info = dict(QVals=q.detach().numpy())
-        if debug > 0: logger.log(f'compute_loss_q: loss_q={loss_q}, requires_grad={loss_q.requires_grad}, loss_info={loss_info}')
 
+        if debug > 0: logger.log(f'compute_loss_q: loss_q={loss_q}, requires_grad={loss_q.requires_grad}, loss_info={loss_info}')
         assert loss_q.requires_grad # Loss must be optimizable.
         return loss_q, loss_info
 
-    # Set up function for computing DDPG pi loss
+    # Set up function for computing pi loss
     def compute_loss_pi(data, debug: int = 0):
         # CHECK: requires_grad == False. Need to use log_prob in order to have requires_grad == True
         o, a = data['obs'], data['act']
@@ -207,10 +205,6 @@ def qpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         logp = a_dist.log_prob(a.squeeze(dim=-1))
         loss_pi = -(logp * q_pi).mean()
         if debug > 0: logger.log(f'compute_loss_pi: loss_pi={loss_pi}, requires_grad={loss_pi.requires_grad}')
-
-        #a, _ = ac.pi(o)
-        #a = a.sample().unsqueeze(dim=-1)
-        #loss_pi = -q_pi.mean()
 
         assert loss_pi.requires_grad # Loss must be optimizable.
         return loss_pi
