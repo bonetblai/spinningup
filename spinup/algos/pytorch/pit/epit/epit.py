@@ -215,6 +215,7 @@ def epit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
     # Instantiate environment
     env = env_fn()
     obs_dim = env.observation_space.shape
+    #logger.log(f'action_space={env.action_space}')
     act_dim = env.action_space.shape
     logger.log(f'Dimensions: obs={obs_dim}, act={act_dim}')
 
