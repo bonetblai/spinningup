@@ -215,7 +215,6 @@ def epit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
     # Instantiate environment
     env = env_fn()
     obs_dim = env.observation_space.shape
-    #logger.log(f'action_space={env.action_space}')
     act_dim = env.action_space.shape
     logger.log(f'Dimensions: obs={obs_dim}, act={act_dim}')
 
@@ -254,7 +253,6 @@ def epit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
     # Set up function for computing value loss
     def compute_loss_v(data, debug=False):
         obs, ret = data['obs'], data['ret']
-        #return ((ac.v(obs) - ret)**2).mean()
         loss_v = ((ac.v(obs) - ret)**2).mean()
         if debug: logger.log(f'compute_loss_v: loss_v={loss_v}')
         return loss_v
@@ -284,7 +282,7 @@ def epit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
         pi_optimizer.step()
 
         # Value function learning (multiple steps of gradient descent over same data, each step improve network though)
-        logger.log(f'update: train_v_iters={train_v_iters}')
+        #logger.log(f'update: train_v_iters={train_v_iters}')
         for i in range(train_v_iters):
             vf_optimizer.zero_grad()
             loss_v = compute_loss_v(data, debug=False)
@@ -323,11 +321,6 @@ def epit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
             timeout = ep_len == max_ep_len
             terminal = d or timeout
             epoch_ended = t==local_steps_per_epoch-1
-
-            #if terminal:
-            #    logger.log(f'Terminal: t={t}, a={a}, v={v}, logp={logp}, next_o={next_o}, r={r}, d={d}')
-            #elif epoch_ended:
-            #    logger.log(f'Epoch ended: t={t}, a={a}, v={v}, logp={logp}, next_o={next_o}, r={r}, d={d}')
 
             if terminal or epoch_ended:
                 if epoch_ended and not(terminal):

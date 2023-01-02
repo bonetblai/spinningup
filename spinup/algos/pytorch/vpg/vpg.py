@@ -187,11 +187,13 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
     seed += 10000 * proc_id()
     torch.manual_seed(seed)
     np.random.seed(seed)
+    logger.log(f'\nSeed: seed={seed}')
 
     # Instantiate environment
     env = env_fn()
     obs_dim = env.observation_space.shape
     act_dim = env.action_space.shape
+    logger.log(f'Dimensions: obs={obs_dim}, act={act_dim}')
 
     # Create actor-critic module
     ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
@@ -201,14 +203,15 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
 
     # Count variables
     var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.v])
-    logger.log('\nNumber of parameters: \t pi: %d, \t v: %d\n'%var_counts)
+    logger.log('Number of parameters: \t pi: %d, \t v: %d'%var_counts)
 
     # Set up experience buffer
     local_steps_per_epoch = int(steps_per_epoch / num_procs())
     buf = VPGBuffer(obs_dim, act_dim, local_steps_per_epoch, gamma, lam)
+    logger.log(f'Buffer: obs_dim={obs_dim}, act_dim={act_dim}, local_steps_per_epoch={local_steps_per_epoch}, gamma={gamma}, lam={lam}\n')
 
     # Set up function for computing VPG policy loss
-    def compute_loss_pi(data):
+    def compute_loss_pi(data, debug=False):
         obs, act, adv, logp_old = data['obs'], data['act'], data['adv'], data['logp']
 
         # Policy loss
@@ -220,12 +223,15 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
         ent = pi.entropy().mean().item()
         pi_info = dict(kl=approx_kl, ent=ent)
 
+        if debug: logger.log(f'compute_loss_pi: loss_pi={loss_pi}, pi_info={pi_info}')
         return loss_pi, pi_info
 
     # Set up function for computing value loss
-    def compute_loss_v(data):
+    def compute_loss_v(data, debug=False):
         obs, ret = data['obs'], data['ret']
-        return ((ac.v(obs) - ret)**2).mean()
+        loss_v = ((ac.v(obs) - ret)**2).mean()
+        if debug: logger.log(f'compute_loss_v: loss_v={loss_v}')
+        return loss_v
 
     # Set up optimizers for policy and value function
     pi_optimizer = Adam(ac.pi.parameters(), lr=pi_lr)
@@ -290,16 +296,20 @@ def vpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(),  seed=0,
 
             if terminal or epoch_ended:
                 if epoch_ended and not(terminal):
-                    print('Warning: trajectory cut off by epoch at %d steps.'%ep_len, flush=True)
+                    print(f'Warning: last trajectory cut off by epoch at {ep_len} steps.', flush=True)
+
                 # if trajectory didn't reach terminal state, bootstrap value target
                 if timeout or epoch_ended:
                     _, v, _ = ac.step(torch.as_tensor(o, dtype=torch.float32))
                 else:
                     v = 0
                 buf.finish_path(v)
+
                 if terminal:
                     # only save EpRet / EpLen if trajectory finished
                     logger.store(EpRet=ep_ret, EpLen=ep_len)
+
+                # reset
                 o, _, ep_ret, ep_len = *env.reset(), 0, 0
 
 

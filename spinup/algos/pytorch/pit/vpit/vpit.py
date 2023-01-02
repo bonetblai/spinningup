@@ -67,7 +67,7 @@ def vpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             ``pi``       (batch, act_dim)  | Tensor containing actions from policy
                                            | given observations.
             ``v``        (batch,)          | Tensor containing the current estimate
-                                           | of Q* for the provided observations
+                                           | of V* for the provided observations
                                            | and actions. (Critical: make sure to
                                            | flatten this!)
             ===========  ================  ======================================
@@ -181,10 +181,10 @@ def vpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         if debug > 1: logger.log(f'compute_loss_v: backup={backup}, shape={backup.shape}')
 
         # MSE loss against Bellman backup
-        loss_v = ((v - backup_v)**2).mean()
+        loss_v = ((v - backup)**2).mean()
 
         # Useful info for logging
-        loss_info = dict(QVals=q.detach().numpy())
+        loss_info = dict(VVals=v.detach().numpy())
 
         if debug > 0: logger.log(f'compute_loss_v: loss_v={loss_v}, requires_grad={loss_v.requires_grad}, loss_info={loss_info}')
         assert loss_v.requires_grad # Loss must be optimizable.
@@ -214,13 +214,13 @@ def vpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     logger.setup_pytorch_saver(ac)
 
     def update(data):
-        # First run one gradient descent step for Q.
+        # First run one gradient descent step for V.
         v_optimizer.zero_grad()
         loss_v, loss_info = compute_loss_v(data)
         loss_v.backward()
         v_optimizer.step()
 
-        # Freeze Q-network so you don't waste computational effort 
+        # Freeze V-network so you don't waste computational effort 
         # computing gradients for it during the policy learning step.
         for p in ac.v.parameters():
             p.requires_grad = False
@@ -231,12 +231,12 @@ def vpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
         loss_pi.backward()
         pi_optimizer.step()
 
-        # Unfreeze Q-network so you can optimize it at next DDPG step.
+        # Unfreeze V-network so you can optimize it at next DDPG step.
         for p in ac.v.parameters():
             p.requires_grad = True
 
         # Record things
-        logger.store(LossQ=loss_v.item(), LossPi=loss_pi.item(), **loss_info)
+        logger.store(LossV=loss_v.item(), LossPi=loss_pi.item(), **loss_info)
 
         # Finally, update target networks by polyak averaging.
         with torch.no_grad():
@@ -324,9 +324,9 @@ def vpit(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
             logger.log_tabular('EpLen', average_only=True)
             logger.log_tabular('TestEpLen', average_only=True)
             logger.log_tabular('TotalEnvInteracts', t)
-            logger.log_tabular('QVals', with_min_and_max=True)
+            logger.log_tabular('VVals', with_min_and_max=True)
             logger.log_tabular('LossPi', average_only=True)
-            logger.log_tabular('LossQ', average_only=True)
+            logger.log_tabular('LossV', average_only=True)
             logger.log_tabular('Time', time.time()-start_time)
             logger.dump_tabular()
 
