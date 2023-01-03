@@ -139,7 +139,6 @@ def ddpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     env, test_env = env_fn(), env_fn()
     obs_dim = env.observation_space.shape
     act_dim = env.action_space.shape[0]
-    logger.log(f'Dimensions: obs={obs_dim}, act={act_dim}')
 
     # Action limit for clamping: critically, assumes all dimensions share the same bound!
     act_limit = env.action_space.high[0]
@@ -147,7 +146,6 @@ def ddpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
     # Create actor-critic module and target networks
     ac = actor_critic(env.observation_space, env.action_space, **ac_kwargs)
     ac_targ = deepcopy(ac)
-    logger.log(f'Actor-critic modules: ac={ac}, ac_targ={ac_targ}')
 
     # Freeze target networks with respect to optimizers (only update via polyak averaging)
     for p in ac_targ.parameters():
@@ -155,44 +153,35 @@ def ddpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     # Experience buffer
     replay_buffer = ReplayBuffer(obs_dim=obs_dim, act_dim=act_dim, size=replay_size)
-    logger.log(f'Buffer: obs_dim={obs_dim}, act_dim={act_dim}, size={replay_size}')
 
     # Count variables (protip: try to get a feel for how different size networks behave!)
     var_counts = tuple(core.count_vars(module) for module in [ac.pi, ac.q])
-    logger.log(f'Number of parameters: pi={var_counts[0]}, q={var_counts[1]}')
+    logger.log('\nNumber of parameters: \t pi: %d, \t q: %d\n'%var_counts)
 
     # Set up function for computing DDPG Q-loss
-    def compute_loss_q(data, debug=False):
+    def compute_loss_q(data):
         o, a, r, o2, d = data['obs'], data['act'], data['rew'], data['obs2'], data['done']
-        if debug: logger.log(f'compute_loss_q: o={o}, a={a}, r={r}, o2={o2}, d={d}')
 
-        q = ac.q(o, a)
-        if debug: logger.log(f'compute_loss_q: q={q}, shape={q.shape}')
+        q = ac.q(o,a)
 
         # Bellman backup for Q function
         with torch.no_grad():
             q_pi_targ = ac_targ.q(o2, ac_targ.pi(o2))
             backup = r + gamma * (1 - d) * q_pi_targ
-        if debug: logger.log(f'compute_loss_q: backup={backup}, shape={backup.shape}')
 
         # MSE loss against Bellman backup
         loss_q = ((q - backup)**2).mean()
 
         # Useful info for logging
         loss_info = dict(QVals=q.detach().numpy())
-        if debug: logger.log(f'compute_loss_q: loss_q={loss_q}, loss_info={loss_info}')
 
-        assert loss_q.requires_grad
         return loss_q, loss_info
 
     # Set up function for computing DDPG pi loss
-    def compute_loss_pi(data, debug=False):
+    def compute_loss_pi(data):
         o = data['obs']
         q_pi = ac.q(o, ac.pi(o))
-        loss_pi = -q_pi.mean()
-        if debug: logger.log(f'compute_loss_pi: loss_pi={loss_pi}')
-        assert loss_pi.requires_grad
-        return loss_pi
+        return -q_pi.mean()
 
     # Set up optimizers for policy and q-function
     pi_optimizer = Adam(ac.pi.parameters(), lr=pi_lr)
@@ -241,10 +230,10 @@ def ddpg(env_fn, actor_critic=core.MLPActorCritic, ac_kwargs=dict(), seed=0,
 
     def test_agent():
         for j in range(num_test_episodes):
-            o, d, ep_ret, ep_len = test_env.reset(), False, 0, 0
+            o, _, d, ep_ret, ep_len = *test_env.reset(), False, 0, 0
             while not(d or (ep_len == max_ep_len)):
                 # Take deterministic actions at test time (noise_scale=0)
-                o, r, d, _ = test_env.step(get_action(o, 0))
+                o, r, d, _, _ = test_env.step(get_action(o, 0.0))
                 ep_ret += r
                 ep_len += 1
             logger.store(TestEpRet=ep_ret, TestEpLen=ep_len)
