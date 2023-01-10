@@ -151,8 +151,10 @@ def call_experiment(exp_name, thunk, seed=0, num_cpu=1, data_dir=None,
         # Make 'env_fn' from 'env_name'
         if 'env_name' in kwargs:
             import gym
+            from wrappers import ObservationWrapper, ActionWrapper
             env_name = kwargs['env_name']
-            kwargs['env_fn'] = lambda : gym.make(env_name)
+            # We add wrappers to handle environments with discrete observation and action spaces
+            kwargs['env_fn'] = lambda : ActionWrapper(ObservationWrapper(gym.make(env_name))
             del kwargs['env_name']
 
         # Fork into multiple processes
